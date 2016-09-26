@@ -1,7 +1,8 @@
-﻿using System.Web.Http;
+﻿using System.Collections.Generic;
+using System.Web.Http;
 using Microsoft.Owin;
 using NSwag.AspNet.Owin;
-using NSwag.CodeGeneration.SwaggerGenerators.WebApi;
+using NSwag.CodeGeneration.SwaggerGenerators.WebApi.Processors;
 using NSwag.Demo.OwinWeb;
 using Owin;
 
@@ -14,7 +15,47 @@ namespace NSwag.Demo.OwinWeb
         {
             var config = new HttpConfiguration();
 
-            app.UseSwaggerUi(typeof(Startup).Assembly, new WebApiToSwaggerGeneratorSettings());
+            app.UseSwaggerUi(typeof(Startup).Assembly, new SwaggerUiOwinSettings
+            {
+                Title = "NSwag Sample API",
+                OAuth2Client = new OAuth2ClientSettings
+                {
+                    ClientId = "foo",
+                    ClientSecret = "bar",
+                    AppName = "my_app",
+                    Realm = "my_realm",
+                    AdditionalQueryStringParameters =
+                    {
+                        { "foo", "bar" }
+                    }
+                },
+                OperationProcessors =
+                {
+                    new OperationSecurityScopeAppender("oauth2")
+                },
+                DocumentProcessors =
+                {
+                    new SecurityDefinitionAppender("oauth2", new SwaggerSecurityScheme
+                    {
+                        Type = SwaggerSecuritySchemeType.OAuth2,
+                        Description = "Foo",
+                        Flow = SwaggerOAuth2Flow.Implicit,
+                        AuthorizationUrl = "https://localhost:44333/core/connect/authorize",
+                        TokenUrl = "https://localhost:44333/core/connect/token",
+                        Scopes = new Dictionary<string,string>
+                        {
+                            { "read", "Read access to protected resources" },
+                            { "write", "Write access to protected resources" }
+                        }
+                    }),
+                    new SecurityDefinitionAppender("apikey", new SwaggerSecurityScheme
+                    {
+                        Type = SwaggerSecuritySchemeType.ApiKey,
+                        Name = "api_key",
+                        In = SwaggerSecurityApiKeyLocation.Header
+                    })
+                }
+            });
             app.UseWebApi(config);
 
             config.MapHttpAttributeRoutes();

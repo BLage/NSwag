@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using NConsole;
+using Newtonsoft.Json;
 using NJsonSchema.CodeGeneration.CSharp;
 using NSwag.CodeGeneration.CodeGenerators;
 using NSwag.CodeGeneration.CodeGenerators.CSharp;
@@ -15,10 +16,11 @@ namespace NSwag.Commands
             Settings = settings; 
         }
 
+        [JsonIgnore]
         public TSettings Settings { get; set; }
         
         [Description("The class name of the generated client.")]
-        [Argument(Name = "ClassName")]
+        [Argument(Name = "ClassName", IsRequired = false)]
         public string ClassName
         {
             get { return Settings.ClassName; }
@@ -87,6 +89,14 @@ namespace NSwag.Commands
         {
             get { return Settings.OperationGenerationMode; }
             set { Settings.OperationGenerationMode = value; }
+        }
+
+        [Description("Specifies whether to generate default values for properties (may generate CSharp 6 code, default: true).")]
+        [Argument(Name = "GenerateDefaultValues", IsRequired = false)]
+        public bool GenerateDefaultValues
+        {
+            get { return Settings.CSharpGeneratorSettings.GenerateDefaultValues; }
+            set { Settings.CSharpGeneratorSettings.GenerateDefaultValues = value; }
         }
     }
 }

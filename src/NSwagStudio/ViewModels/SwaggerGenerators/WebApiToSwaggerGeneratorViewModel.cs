@@ -65,23 +65,7 @@ namespace NSwagStudio.ViewModels.SwaggerGenerators
                 }
             }
         }
-
-        public string ReferencePaths
-        {
-            get
-            {
-                return Command.ReferencePaths != null ? string.Join(",", Command.ReferencePaths) : "";
-            }
-            set
-            {
-                if (!string.IsNullOrEmpty(value))
-                    Command.ReferencePaths = value.Split(',').Select(n => n.Trim()).Where(n => !string.IsNullOrEmpty(n)).ToArray();
-                else
-                    Command.ReferencePaths = new string[] { };
-                RaisePropertyChanged(() => ReferencePaths);
-            }
-        }
-
+        
         /// <summary>Gets or sets the assembly path. </summary>
         public string AssemblyPath
         {
@@ -139,7 +123,7 @@ namespace NSwagStudio.ViewModels.SwaggerGenerators
             {
                 AllControllerNames = await Task.Run(() =>
                 {
-                    if (!string.IsNullOrEmpty(Command.Settings.AssemblyPath))
+                    if (Command.Settings.AssemblyPaths?.Length > 0)
                     {
                         var generator = new WebApiAssemblyToSwaggerGenerator(Command.Settings);
                         return generator.GetControllerClasses();

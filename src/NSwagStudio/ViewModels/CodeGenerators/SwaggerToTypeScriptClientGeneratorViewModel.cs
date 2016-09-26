@@ -10,9 +10,8 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
-using MyToolkit.Storage;
-using Newtonsoft.Json;
 using NJsonSchema.CodeGeneration.TypeScript;
+using NSwag;
 using NSwag.CodeGeneration.CodeGenerators;
 using NSwag.CodeGeneration.CodeGenerators.TypeScript;
 using NSwag.Commands;
@@ -24,11 +23,11 @@ namespace NSwagStudio.ViewModels.CodeGenerators
         private string _clientCode;
         private SwaggerToTypeScriptClientCommand _command = new SwaggerToTypeScriptClientCommand();
 
-        public bool ShowSettings
-        {
-            get { return ApplicationSettings.GetSetting("SwaggerToTypeScriptClientGeneratorModel.ShowSettings", true); }
-            set { ApplicationSettings.SetSetting("SwaggerToTypeScriptClientGeneratorModel.ShowSettings", value); }
-        }
+        //public bool ShowSettings
+        //{
+        //    get { return ApplicationSettings.GetSetting("SwaggerToTypeScriptClientGeneratorModel.ShowSettings", true); }
+        //    set { ApplicationSettings.SetSetting("SwaggerToTypeScriptClientGeneratorModel.ShowSettings", value); }
+        //}
 
         /// <summary>Gets the settings.</summary>
         public SwaggerToTypeScriptClientCommand Command
@@ -70,6 +69,17 @@ namespace NSwagStudio.ViewModels.CodeGenerators
             }
         }
 
+        /// <summary>Gets the list of date time types. </summary>
+        public TypeScriptDateTimeType[] DateTimeTypes
+        {
+            get
+            {
+                return Enum.GetNames(typeof(TypeScriptDateTimeType))
+                    .Select(t => (TypeScriptDateTimeType)Enum.Parse(typeof(TypeScriptDateTimeType), t))
+                    .ToArray();
+            }
+        }
+
         public string ClassTypes
         {
             get { return _command.ClassTypes != null ? string.Join(",", _command.ClassTypes) : ""; }
@@ -97,7 +107,7 @@ namespace NSwagStudio.ViewModels.CodeGenerators
             set { Set(ref _clientCode, value); }
         }
 
-        public Task GenerateClientAsync(string swaggerData)
+        public Task GenerateClientAsync(string swaggerData, string documentPath)
         {
             return RunTaskAsync(async () =>
             {
@@ -106,7 +116,7 @@ namespace NSwagStudio.ViewModels.CodeGenerators
                 {
                     if (!string.IsNullOrEmpty(swaggerData))
                     {
-                        Command.Input = swaggerData;
+                        Command.Input = SwaggerService.FromJson(swaggerData, documentPath);
                         code = await Command.RunAsync();
                         Command.Input = null;
                     }

@@ -39,47 +39,56 @@ namespace NSwag.CodeGeneration.Tests.WebApiToSwaggerGenerator.Attributes
         public void When_parameter_is_complex_then_it_is_a_body_parameter()
         {
             //// Arrange
-            var generator = new SwaggerGenerators.WebApi.WebApiToSwaggerGenerator(new WebApiToSwaggerGeneratorSettings());
+            var generator = new SwaggerGenerators.WebApi.WebApiToSwaggerGenerator(new WebApiToSwaggerGeneratorSettings
+            {
+                DefaultUrlTemplate = "api/{controller}/{action}/{id}"
+            });
 
             //// Act
             var service = generator.GenerateForController<TestController>();
             var operation = service.Operations.Single(o => o.Operation.OperationId == "Test_WithoutAttribute").Operation;
 
             //// Assert
-            Assert.AreEqual(SwaggerParameterKind.Body, operation.Parameters[0].Kind);
-            Assert.AreEqual("data", operation.Parameters[0].Name);
+            Assert.AreEqual(SwaggerParameterKind.Body, operation.ActualParameters[0].Kind);
+            Assert.AreEqual("data", operation.ActualParameters[0].Name);
         }
 
         [TestMethod]
         public void When_parameter_is_complex_and_has_FromUri_then_complex_object_properties_are_added()
         {
             //// Arrange
-            var generator = new SwaggerGenerators.WebApi.WebApiToSwaggerGenerator(new WebApiToSwaggerGeneratorSettings());
+            var generator = new SwaggerGenerators.WebApi.WebApiToSwaggerGenerator(new WebApiToSwaggerGeneratorSettings
+            {
+                DefaultUrlTemplate = "api/{controller}/{action}/{id}"
+            });
 
             //// Act
             var service = generator.GenerateForController<TestController>();
             var operation = service.Operations.Single(o => o.Operation.OperationId == "Test_WithFromUriAttribute").Operation;
 
             //// Assert
-            Assert.AreEqual(SwaggerParameterKind.Query, operation.Parameters[0].Kind);
-            Assert.AreEqual(SwaggerParameterKind.Query, operation.Parameters[1].Kind);
-            Assert.AreEqual("Foo", operation.Parameters[0].Name);
-            Assert.AreEqual("bar", operation.Parameters[1].Name);
+            Assert.AreEqual(SwaggerParameterKind.Query, operation.ActualParameters[0].Kind);
+            Assert.AreEqual(SwaggerParameterKind.Query, operation.ActualParameters[1].Kind);
+            Assert.AreEqual("Foo", operation.ActualParameters[0].Name);
+            Assert.AreEqual("bar", operation.ActualParameters[1].Name);
         }
 
         [TestMethod]
         public void When_parameter_is_complex_and_has_FromBody_then_it_is_a_body_parameter()
         {
             //// Arrange
-            var generator = new SwaggerGenerators.WebApi.WebApiToSwaggerGenerator(new WebApiToSwaggerGeneratorSettings());
+            var generator = new SwaggerGenerators.WebApi.WebApiToSwaggerGenerator(new WebApiToSwaggerGeneratorSettings
+            {
+                DefaultUrlTemplate = "api/{controller}/{action}/{id}"
+            });
 
             //// Act
             var service = generator.GenerateForController<TestController>();
             var operation = service.Operations.Single(o => o.Operation.OperationId == "Test_WithFromBodyAttribute").Operation;
 
             //// Assert
-            Assert.AreEqual(SwaggerParameterKind.Body, operation.Parameters[0].Kind);
-            Assert.AreEqual("data", operation.Parameters[0].Name);
+            Assert.AreEqual(SwaggerParameterKind.Body, operation.ActualParameters[0].Kind);
+            Assert.AreEqual("data", operation.ActualParameters[0].Name);
         }
     }
 }

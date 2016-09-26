@@ -15,12 +15,6 @@ namespace NSwag
     /// <summary>The definition of a security scheme that can be used by the operations.</summary>
     public class SwaggerSecurityScheme
     {
-        /// <summary>Initializes a new instance of the <see cref="SwaggerSecurityScheme"/> class.</summary>
-        public SwaggerSecurityScheme()
-        {
-            Scopes = new Dictionary<string, string>();   
-        }
-
         /// <summary>Gets or sets the type of the security scheme.</summary>
         [JsonProperty(PropertyName = "type", Required = Required.Always, DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
         [JsonConverter(typeof(StringEnumConverter))]
@@ -30,17 +24,18 @@ namespace NSwag
         [JsonProperty(PropertyName = "description", DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
         public string Description { get; set; }
 
-        /// <summary>Gets or sets the name of the header or query parameter to be used.</summary>
+        /// <summary>Gets or sets the name of the header or query parameter to be used to transmit the API key.</summary>
         [JsonProperty(PropertyName = "name", DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
         public string Name { get; set; }
-
-        /// <summary>Gets or sets the location of the API key.</summary>
+        
+        /// <summary>Gets or sets the type of the API key.</summary>
         [JsonProperty(PropertyName = "in", DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
-        public string ApiKeyLocation { get; set; }
+        [JsonConverter(typeof(StringEnumConverter))]
+        public SwaggerSecurityApiKeyLocation In { get; set; }
 
         /// <summary>Gets or sets the used by the OAuth2 security scheme.</summary>
         [JsonProperty(PropertyName = "flow", DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
-        public string Flow { get; set; }
+        public SwaggerOAuth2Flow Flow { get; set; }
 
         /// <summary>Gets or sets the authorization URL to be used for this flow.</summary>
         [JsonProperty(PropertyName = "authorizationUrl", DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
@@ -52,6 +47,6 @@ namespace NSwag
 
         /// <summary>Gets the available scopes for the OAuth2 security scheme.</summary>
         [JsonProperty(PropertyName = "scopes", DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
-        public Dictionary<string, string> Scopes { get; private set; }
+        public IDictionary<string, string> Scopes { get; set; }
     }
 }

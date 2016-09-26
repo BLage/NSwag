@@ -15,6 +15,7 @@ namespace NSwag.CodeGeneration.Tests.CommandLine
             var command = "webapi2swagger " +
                           "/assembly:" + Path.GetFullPath("../../../NSwag.Demo.Web/bin/NSwag.Demo.Web.dll") + " " +
                           "/controller:NSwag.Demo.Web.Controllers.PersonsController " +
+                          "/defaultUrlTemplate:api/{controller}/{action}/{id} " +
                           "/output:" + OutputFile;
 
             //// Act
@@ -37,7 +38,7 @@ namespace NSwag.CodeGeneration.Tests.CommandLine
             var output = RunCommandLine(command);
 
             //// Assert
-            Assert.IsTrue(output.Contains("export interface Test {"));
+            Assert.IsTrue(output.Contains("export class Test {"));
         }
 
         private const string OutputFile = "Output.json";

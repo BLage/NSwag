@@ -37,6 +37,14 @@ namespace NSwag.Commands
             set { Settings.TypeScriptGeneratorSettings.ModuleName = value; }
         }
 
+        [Description("The TypeScript namespace (default: '', no namespace).")]
+        [Argument(Name = "Namespace", IsRequired = false)]
+        public string Namespace
+        {
+            get { return Settings.TypeScriptGeneratorSettings.Namespace; }
+            set { Settings.TypeScriptGeneratorSettings.Namespace = value; }
+        }
+
         [Description("The type of the asynchronism handling ('JQueryCallbacks', 'JQueryPromises', 'AngularJS', 'Angular2').")]
         [Argument(Name = "Template", IsRequired = false)]
         public TypeScriptTemplate Template
@@ -51,6 +59,14 @@ namespace NSwag.Commands
         {
             get { return Settings.PromiseType; }
             set { Settings.PromiseType = value; }
+        }
+
+        [Description("The date time type ('Date', 'MomentJS', 'string').")]
+        [Argument(Name = "DateTimeType", IsRequired = false)]
+        public TypeScriptDateTimeType DateTimeType
+        {
+            get { return Settings.TypeScriptGeneratorSettings.DateTimeType; }
+            set { Settings.TypeScriptGeneratorSettings.DateTimeType = value; }
         }
 
         [Description("Specifies whether generate client classes.")]
@@ -93,7 +109,7 @@ namespace NSwag.Commands
             set { Settings.TypeScriptGeneratorSettings.GenerateReadOnlyKeywords = value; }
         }
 
-        [Description("The type style (default: Interface).")]
+        [Description("The type style (default: Class).")]
         [Argument(Name = "TypeStyle", IsRequired = false)]
         public TypeScriptTypeStyle TypeStyle
         {
@@ -120,6 +136,14 @@ namespace NSwag.Commands
         [Description("The extension code (string or file path).")]
         [Argument(Name = "ExtensionCode", IsRequired = false)]
         public string ExtensionCode { get; set; }
+
+        [Description("Specifies whether to generate default values for properties (default: true).")]
+        [Argument(Name = "GenerateDefaultValues", IsRequired = false)]
+        public bool GenerateDefaultValues
+        {
+            get { return Settings.TypeScriptGeneratorSettings.GenerateDefaultValues; }
+            set { Settings.TypeScriptGeneratorSettings.GenerateDefaultValues = value; }
+        }
 
         public override async Task<object> RunAsync(CommandLineProcessor processor, IConsoleHost host)
         {

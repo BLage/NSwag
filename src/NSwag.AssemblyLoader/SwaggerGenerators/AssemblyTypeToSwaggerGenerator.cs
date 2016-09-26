@@ -37,7 +37,7 @@ namespace NSwag.CodeGeneration.SwaggerGenerators
             if (File.Exists(Settings.AssemblyPath))
             {
                 using (var isolated = new AppDomainIsolation<NetAssemblyLoader>(Path.GetDirectoryName(Path.GetFullPath(Settings.AssemblyPath)), Settings.AssemblyConfig))
-                    return isolated.Object.GetClasses(Settings.AssemblyPath, Settings.ReferencePaths);
+                    return isolated.Object.GetClasses(Settings.AssemblyPath, Settings.AllReferencePaths);
             }
             return new string[] { };
         }
@@ -56,17 +56,19 @@ namespace NSwag.CodeGeneration.SwaggerGenerators
             internal string FromAssemblyType(string[] classNames, string settingsData)
             {
                 var settings = JsonConvert.DeserializeObject<AssemblyTypeToSwaggerGeneratorSettings>(settingsData);
-                RegisterReferencePaths(settings.ReferencePaths);
+                RegisterReferencePaths(settings.AllReferencePaths);
+
+                var service = new SwaggerService();
 
                 var generator = new JsonSchemaGenerator(settings);
-                var resolver = new SchemaResolver();
-                var service = new SwaggerService();
+                var schemaResolver = new SchemaResolver();
+                var schemaDefinitionAppender = new SwaggerServiceSchemaDefinitionAppender(service, settings.TypeNameGenerator);
 
                 var assembly = Assembly.LoadFrom(settings.AssemblyPath);
                 foreach (var className in classNames)
                 {
                     var type = assembly.GetType(className);
-                    var schema = generator.Generate(type, resolver);
+                    var schema = generator.Generate(type, schemaResolver, schemaDefinitionAppender);
                     service.Definitions[type.Name] = schema;
                 }
 

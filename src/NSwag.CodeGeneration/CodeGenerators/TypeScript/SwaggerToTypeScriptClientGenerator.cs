@@ -10,10 +10,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NJsonSchema;
+using NJsonSchema.CodeGeneration;
 using NJsonSchema.CodeGeneration.TypeScript;
 using NSwag.CodeGeneration.CodeGenerators.Models;
 using NSwag.CodeGeneration.CodeGenerators.TypeScript.Models;
-using NSwag.CodeGeneration.CodeGenerators.TypeScript.Templates;
 
 namespace NSwag.CodeGeneration.CodeGenerators.TypeScript
 {
@@ -36,10 +36,12 @@ namespace NSwag.CodeGeneration.CodeGenerators.TypeScript
             Settings = settings;
 
             _service = service;
+
             foreach (var definition in _service.Definitions.Where(p => string.IsNullOrEmpty(p.Value.TypeNameRaw)))
                 definition.Value.TypeNameRaw = definition.Key;
 
-            _resolver = new TypeScriptTypeResolver(_service.Definitions.Select(p => p.Value).ToArray(), Settings.TypeScriptGeneratorSettings);
+            _resolver = new TypeScriptTypeResolver(Settings.TypeScriptGeneratorSettings, service);
+            _resolver.AddSchemas(_service.Definitions);
         }
 
         /// <summary>Gets or sets the generator settings.</summary>
@@ -52,37 +54,42 @@ namespace NSwag.CodeGeneration.CodeGenerators.TypeScript
         /// <returns>The file contents.</returns>
         public override string GenerateFile()
         {
-            return GenerateFile(_service, _resolver);
+            return GenerateFile(_service, _resolver, ClientGeneratorOutputType.Full);
+        }
+
+        /// <summary>Resolves the type of the parameter.</summary>
+        /// <param name="parameter">The parameter.</param>
+        /// <param name="resolver">The resolver.</param>
+        /// <returns>The parameter type name.</returns>
+        protected override string ResolveParameterType(SwaggerParameter parameter, ITypeResolver resolver)
+        {
+            var schema = parameter.ActualSchema;
+            if (schema.Type == JsonObjectType.File)
+            {
+                if (parameter.CollectionFormat == SwaggerParameterCollectionFormat.Multi && !schema.Type.HasFlag(JsonObjectType.Array))
+                    return "FileParameter[]";
+
+                return "FileParameter";
+            }
+
+            return base.ResolveParameterType(parameter, resolver);
         }
 
         internal override ClientGeneratorBaseSettings BaseSettings => Settings;
 
-        internal override string RenderFile(string clientCode, string[] clientClasses)
+        internal override string GenerateFile(string clientCode, IEnumerable<string> clientClasses, ClientGeneratorOutputType outputType)
         {
-            var template = new FileTemplate();
-            template.Initialize(new
-            {
-                Toolchain = SwaggerService.ToolchainVersion,
-                IsAngular2 = Settings.GenerateClientClasses && Settings.Template == TypeScriptTemplate.Angular2,
-
-                Clients = Settings.GenerateClientClasses ? clientCode : string.Empty,
-                Types = GenerateDtoTypes(),
-
-                ExtensionCodeBefore = Settings.TypeScriptGeneratorSettings.ProcessedExtensionCode.CodeBefore, 
-                ExtensionCodeAfter = GenerateExtensionCodeAfter(clientClasses),
-
-                HasModuleName = !string.IsNullOrEmpty(Settings.TypeScriptGeneratorSettings.ModuleName),
-                ModuleName = Settings.TypeScriptGeneratorSettings.ModuleName
-            });
+            var model = new FileTemplateModel(clientCode, clientClasses, Settings, _resolver);
+            var template = BaseSettings.CodeGeneratorSettings.TemplateFactory.CreateTemplate("TypeScript", "File", model);
             return template.Render();
         }
 
-        internal override string RenderClientCode(string controllerName, IList<OperationModel> operations)
+        internal override string GenerateClientClass(string controllerName, IList<OperationModel> operations, ClientGeneratorOutputType outputType)
         {
             UpdateUseDtoClassAndDataConversionCodeProperties(operations);
 
-            var template = Settings.CreateTemplate();
-            template.Initialize(new ClientTemplateModel(GetClassName(controllerName), operations, _service, Settings));
+            var model = new ClientTemplateModel(GetClassName(controllerName), operations, _service, Settings);
+            var template = Settings.CreateTemplate(model);
             var code = template.Render();
 
             return AppendExtensionClassIfNecessary(controllerName, code);
@@ -125,6 +132,9 @@ namespace NSwag.CodeGeneration.CodeGenerators.TypeScript
             if (schema == null)
                 return "void";
 
+            if (schema.ActualSchema.Type == JsonObjectType.File)
+                return "any";
+
             if (schema.ActualSchema.IsAnyType || schema.ActualSchema.Type == JsonObjectType.File)
                 return "any";
 
@@ -137,17 +147,6 @@ namespace NSwag.CodeGeneration.CodeGenerators.TypeScript
                 return className + "Base";
 
             return className;
-        }
-
-        private string GenerateExtensionCodeAfter(string[] clientClasses)
-        {
-            var clientClassesVariable = "{" + string.Join(", ", clientClasses.Select(c => "'" + c + "': " + c)) + "}";
-            return Settings.TypeScriptGeneratorSettings.ProcessedExtensionCode.CodeAfter.Replace("{clientClasses}", clientClassesVariable);
-        }
-
-        private string GenerateDtoTypes()
-        {
-            return Settings.GenerateDtoTypes ? _resolver.GenerateTypes(Settings.TypeScriptGeneratorSettings.ProcessedExtensionCode) : string.Empty;
         }
 
         private void UpdateUseDtoClassAndDataConversionCodeProperties(IEnumerable<OperationModel> operations)
@@ -189,6 +188,7 @@ namespace NSwag.CodeGeneration.CodeGenerators.TypeScript
                         Schema = response.ActualResponseSchema,
                         IsPropertyNullable = response.IsNullable,
                         TypeNameHint = string.Empty,
+                        Settings = Settings.TypeScriptGeneratorSettings,
                         Resolver = _resolver
                     });
                 }
@@ -203,6 +203,7 @@ namespace NSwag.CodeGeneration.CodeGenerators.TypeScript
                         Schema = operation.DefaultResponse.ActualResponseSchema,
                         IsPropertyNullable = operation.DefaultResponse.IsNullable,
                         TypeNameHint = string.Empty,
+                        Settings = Settings.TypeScriptGeneratorSettings,
                         Resolver = _resolver
                     });
                 }

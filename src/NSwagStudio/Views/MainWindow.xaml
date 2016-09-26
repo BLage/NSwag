@@ -4,22 +4,12 @@
         xmlns:viewModels="clr-namespace:NSwagStudio.ViewModels"
         xmlns:views="clr-namespace:NSwagStudio.Views"
         Title="NSwagStudio: The Swagger API toolchain for .NET and TypeScript" 
-        MinHeight="600" MinWidth="700" UseLayoutRounding="True"
+        MinHeight="650" MinWidth="1000" UseLayoutRounding="True"
         WindowStartupLocation="CenterScreen"
-        Height="700" Width="1000">
+        Height="650" Width="1000">
 
     <Window.Resources>
         <viewModels:MainWindowModel x:Key="ViewModel" />
-        <DataTemplate x:Key="RotatedTabItem">
-            <ContentPresenter Margin="4,8,4,8">
-                <ContentPresenter.LayoutTransform>
-                    <RotateTransform Angle="270" />
-                </ContentPresenter.LayoutTransform>
-                <ContentPresenter.Content>
-                    <TextBlock Text="{TemplateBinding Content}" FontSize="14" />
-                </ContentPresenter.Content>
-            </ContentPresenter>
-        </DataTemplate>
     </Window.Resources>
 
     <Grid DataContext="{StaticResource ViewModel}">
@@ -87,7 +77,8 @@
                         <Hyperlink NavigateUri="http://www.rsuter.com" Click="OnOpenHyperlink">Rico Suter</Hyperlink> and other contributors.
                     </TextBlock>
                     <TextBlock Margin="0,0,0,8">
-                        Application Version: <Run Text="{Binding ApplicationVersion, Mode=OneWay}" />
+                        NSwag Version: <Run Text="{Binding NSwagVersion, Mode=OneWay}" /> <LineBreak />
+                        NJsonSchema Version: <Run Text="{Binding NJsonSchemaVersion, Mode=OneWay}" />
                     </TextBlock>
                     <TextBlock Margin="0,0,0,8">
                         License: <Hyperlink NavigateUri="https://github.com/NSwag/NSwag/blob/master/LICENSE.md" Click="OnOpenHyperlink">Ms-PL</Hyperlink>

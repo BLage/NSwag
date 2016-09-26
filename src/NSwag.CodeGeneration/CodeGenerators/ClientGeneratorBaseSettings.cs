@@ -18,7 +18,7 @@ namespace NSwag.CodeGeneration.CodeGenerators
         /// <summary>Initializes a new instance of the <see cref="ClientGeneratorBaseSettings"/> class.</summary>
         protected ClientGeneratorBaseSettings()
         {
-            GenerateClientClasses = true; 
+            GenerateClientClasses = true;
             GenerateDtoTypes = true;
             OperationGenerationMode = OperationGenerationMode.MultipleClientsFromOperationId;
         }
@@ -34,8 +34,8 @@ namespace NSwag.CodeGeneration.CodeGenerators
 
         /// <summary>Gets or sets a value indicating whether to generate DTO classes (default: true).</summary>
         public bool GenerateDtoTypes { get; set; }
-        
-        /// <summary>Gets or sets a value indicating whether to generate interfaces for the client classes.</summary>
+
+        /// <summary>Gets or sets a value indicating whether to generate interfaces for the client classes (default: false).</summary>
         public bool GenerateClientInterfaces { get; set; }
 
         /// <summary>Gets or sets a value indicating whether to generate client types (default: true).</summary>

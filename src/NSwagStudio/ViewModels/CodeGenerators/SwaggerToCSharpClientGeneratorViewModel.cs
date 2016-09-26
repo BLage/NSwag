@@ -7,11 +7,12 @@
 //-----------------------------------------------------------------------
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
-using MyToolkit.Storage;
 using NJsonSchema.CodeGeneration.CSharp;
+using NSwag;
 using NSwag.CodeGeneration.CodeGenerators;
 using NSwag.Commands;
 
@@ -22,11 +23,11 @@ namespace NSwagStudio.ViewModels.CodeGenerators
         private string _clientCode;
         private SwaggerToCSharpClientCommand _command = new SwaggerToCSharpClientCommand();
 
-        public bool ShowSettings
-        {
-            get { return ApplicationSettings.GetSetting("SwaggerToCSharpClientGeneratorViewModel.ShowSettings", true); }
-            set { ApplicationSettings.SetSetting("SwaggerToCSharpClientGeneratorViewModel.ShowSettings", value); }
-        }
+        //public bool ShowSettings
+        //{
+        //    get { return ApplicationSettings.GetSetting("SwaggerToCSharpClientGeneratorViewModel.ShowSettings", true); }
+        //    set { ApplicationSettings.SetSetting("SwaggerToCSharpClientGeneratorViewModel.ShowSettings", value); }
+        //}
 
         /// <summary>Gets the settings.</summary>
         public SwaggerToCSharpClientCommand Command
@@ -85,22 +86,21 @@ namespace NSwagStudio.ViewModels.CodeGenerators
             set { Set(ref _clientCode, value); }
         }
 
-        public Task GenerateClientAsync(string swaggerData)
+        public Task GenerateClientAsync(string swaggerData, string documentPath)
         {
             return RunTaskAsync(async () =>
             {
-                var code = string.Empty;
+                Dictionary<string, string> result = null;
                 await Task.Run(async () =>
                 {
                     if (!string.IsNullOrEmpty(swaggerData))
                     {
-                        Command.Input = swaggerData;
-                        code = await Command.RunAsync();
+                        Command.Input = SwaggerService.FromJson(swaggerData, documentPath);
+                        result = await Command.RunAsync();
                         Command.Input = null;
                     }
                 });
-
-                ClientCode = code ?? string.Empty;
+                ClientCode = string.Join("\n\n", result.Values);
             });
         }
 

@@ -8,35 +8,85 @@
 
 using System;
 using System.IO;
-using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using Newtonsoft.Json.Linq;
+using NJsonSchema;
+using NJsonSchema.CodeGeneration.CSharp;
+using NSwag.Annotations;
+using NSwag.CodeGeneration.SwaggerGenerators.WebApi;
 
 namespace NSwag.CodeGeneration.Infrastructure
 {
     internal class AssemblyConfigurationFileTransformer : IDisposable
     {
+        private const string EmptyConfig =
+@"<?xml version=""1.0"" encoding=""utf-8""?>
+<configuration>
+  <runtime>
+    <assemblyBinding xmlns=""urn:schemas-microsoft-com:asm.v1"">
+    </assemblyBinding>
+  </runtime>
+</configuration>";
+
+        private readonly string JsonNetAssemblyBinding =
+@"<dependentAssembly>
+  <assemblyIdentity name=""{name}"" publicKeyToken=""30ad4fe6b2a6aeed"" culture=""neutral"" />
+  <bindingRedirect oldVersion=""0.0.0.0-9999.0.0.0"" newVersion=""{newVersion}"" />
+</dependentAssembly>";
+
+        private readonly string NSwagAssemblyBinding =
+@"<dependentAssembly>
+  <assemblyIdentity name=""{name}"" publicKeyToken=""c2d88086e098d109"" culture=""neutral"" />
+  <bindingRedirect oldVersion=""0.0.0.0-9999.0.0.0"" newVersion=""{newVersion}"" />
+</dependentAssembly>";
+
+        private readonly string NJsonSchemaAssemblyBinding =
+@"<dependentAssembly>
+  <assemblyIdentity name=""{name}"" publicKeyToken=""c2f9c3bdfae56102"" culture=""neutral"" />
+  <bindingRedirect oldVersion=""0.0.0.0-9999.0.0.0"" newVersion=""{newVersion}"" />
+</dependentAssembly>";
+
         private string _transformedConfigurationPath = null;
 
-        public string GetConfigurationPath(string assemblyDirectory)
+        public string GetConfigurationPath(string assemblyDirectory, string configurationPath)
         {
-            var configPath = GetOriginalConfigurationPath(assemblyDirectory);
-            if (configPath != null)
-            {
-                var content = File.ReadAllText(configPath, Encoding.UTF8);
-                configPath = configPath + ".nswagtemp";
+            configurationPath = configurationPath ?? TryFindConfigurationPath(assemblyDirectory);
+            var content = configurationPath != null ? File.ReadAllText(configurationPath, Encoding.UTF8) : EmptyConfig;
 
-                // Transform Newtonsoft.Json binding redirect so that all code uses the same JSON classes
-                content = Regex.Replace(content, "<assemblyIdentity name=\"Newtonsoft.Json\"((.|\n|\r)*?)</dependentAssembly>",
+            content = UpdateOrAddBindingRedirect(content, "Newtonsoft.Json", typeof(JToken), JsonNetAssemblyBinding);
+
+            content = UpdateOrAddBindingRedirect(content, "NJsonSchema", typeof(JsonSchema4), NJsonSchemaAssemblyBinding);
+            content = UpdateOrAddBindingRedirect(content, "NJsonSchema.CodeGeneration", typeof(CSharpGenerator), NJsonSchemaAssemblyBinding);
+
+            content = UpdateOrAddBindingRedirect(content, "NSwag.Core", typeof(SwaggerService), NSwagAssemblyBinding);
+            content = UpdateOrAddBindingRedirect(content, "NSwag.CodeGeneration", typeof(WebApiToSwaggerGenerator), NSwagAssemblyBinding);
+            content = UpdateOrAddBindingRedirect(content, "NSwag.Annotations", typeof(SwaggerTagsAttribute), NSwagAssemblyBinding);
+
+            _transformedConfigurationPath = Path.Combine(Path.GetTempPath(), "NSwag_" + Guid.NewGuid() + ".nswagtemp");
+            File.WriteAllText(_transformedConfigurationPath, content, Encoding.UTF8);
+            return _transformedConfigurationPath;
+        }
+
+        private string UpdateOrAddBindingRedirect(string content, string name, Type newVersionType, string assemblyBinding)
+        {
+            var newVersion = newVersionType.Assembly.GetName().Version.ToString();
+            if (content.Contains(@"assemblyIdentity name=""" + name + @""""))
+            {
+                content = Regex.Replace(content, "<assemblyIdentity name=\"" + Regex.Escape(name) + "\"((.|\n|\r)*?)</dependentAssembly>",
                     match => Regex.Replace(match.Value, "oldVersion=\"(.*?)\"", "oldVersion=\"0.0.0.0-9999.0.0.0\""),
                     RegexOptions.Singleline);
 
-                File.WriteAllText(configPath, content, Encoding.UTF8);
-                _transformedConfigurationPath = configPath;
-                return configPath;
-            }
+                content = Regex.Replace(content, "<assemblyIdentity name=\"" + Regex.Escape(name) + "\"((.|\n|\r)*?)</dependentAssembly>",
+                    match => Regex.Replace(match.Value, "newVersion=\"(.*?)\"", "newVersion=\"" + newVersion + "\""),
+                    RegexOptions.Singleline);
 
-            return Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "App.config");
+                return content;
+            }
+            else
+                return content.Replace("</assemblyBinding>", assemblyBinding
+                    .Replace("{name}", name)
+                    .Replace("{newVersion}", newVersion) + "</assemblyBinding>");
         }
 
         public void Dispose()
@@ -44,11 +94,11 @@ namespace NSwag.CodeGeneration.Infrastructure
             if (_transformedConfigurationPath != null)
             {
                 File.Delete(_transformedConfigurationPath);
-                _transformedConfigurationPath = null; 
+                _transformedConfigurationPath = null;
             }
         }
 
-        private string GetOriginalConfigurationPath(string assemblyDirectory)
+        private string TryFindConfigurationPath(string assemblyDirectory)
         {
             var config = Path.Combine(assemblyDirectory, "App.config");
             if (File.Exists(config))

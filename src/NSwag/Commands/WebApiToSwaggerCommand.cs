@@ -1,5 +1,6 @@
-using System.Collections.Generic;
+using System;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using NConsole;
@@ -22,12 +23,18 @@ namespace NSwag.Commands
         [JsonIgnore]
         public WebApiAssemblyToSwaggerGeneratorSettings Settings { get; set; }
 
-        [Description("The path to the Web API .NET assembly.")]
-        [Argument(Name = "Assembly")]
         public string AssemblyPath
         {
-            get { return Settings.AssemblyPath; }
-            set { Settings.AssemblyPath = value; }
+            get { return Settings.AssemblyPaths.FirstOrDefault(); }
+            set { Settings.AssemblyPaths = !string.IsNullOrEmpty(value) ? new[] { value } : new string[] { }; }
+        }
+
+        [Description("The path or paths to the Web API .NET assemblies (comma separated).")]
+        [Argument(Name = "Assembly")]
+        public string[] AssemblyPaths
+        {
+            get { return Settings.AssemblyPaths; }
+            set { Settings.AssemblyPaths = value; }
         }
 
         [Description("The path to the assembly App.config or Web.config (optional).")]
@@ -38,7 +45,7 @@ namespace NSwag.Commands
             set { Settings.AssemblyConfig = value; }
         }
 
-        [Description("The paths to search for referenced assembly files.")]
+        [Description("The paths to search for referenced assembly files (comma separated).")]
         [Argument(Name = "ReferencePaths", IsRequired = false)]
         public string[] ReferencePaths
         {
@@ -54,7 +61,7 @@ namespace NSwag.Commands
         [Argument(Name = "Controllers", IsRequired = false)]
         public string[] ControllerNames { get; set; }
 
-        [Description("The Web API default URL template.")]
+        [Description("The Web API default URL template (default: 'api/{controller}/{id}').")]
         [Argument(Name = "DefaultUrlTemplate", IsRequired = false)]
         public string DefaultUrlTemplate
         {
@@ -94,18 +101,66 @@ namespace NSwag.Commands
             set { Settings.GenerateKnownTypes = value; }
         }
 
+
+        [Description("Overrides the service host of the web service (optional).")]
+        [Argument(Name = "ServiceHost", IsRequired = false)]
+        public string ServiceHost { get; set; }
+
+        [Description("Overrides the allowed schemes of the web service (optional, comma separated, 'http', 'https', 'ws', 'wss').")]
+        [Argument(Name = "ServiceSchemes", IsRequired = false)]
+        public string[] ServiceSchemes { get; set; }
+
+
+        [Description("Specify the title of the Swagger specification.")]
+        [Argument(Name = "InfoTitle", IsRequired = false)]
+        public string InfoTitle
+        {
+            get { return Settings.Title; }
+            set { Settings.Title = value; }
+        }
+
+        [Description("Specify the description of the Swagger specification.")]
+        [Argument(Name = "InfoDescription", IsRequired = false)]
+        public string InfoDescription
+        {
+            get { return Settings.Description; }
+            set { Settings.Description = value; }
+        }
+
+        [Description("Specify the version of the Swagger specification (default: 1.0.0).")]
+        [Argument(Name = "InfoVersion", IsRequired = false)]
+        public string InfoVersion
+        {
+            get { return Settings.Version; }
+            set { Settings.Version = value; }
+        }
+
+        [Description("Specifies the Swagger document template (may be a path or JSON, default: none).")]
+        [Argument(Name = "DocumentTemplate", IsRequired = false)]
+        public string DocumentTemplate { get; set; }
+
         public override async Task<object> RunAsync(CommandLineProcessor processor, IConsoleHost host)
         {
             var service = await RunAsync();
             if (TryWriteFileOutput(host, () => service.ToJson()) == false)
                 return service;
-            return null; 
+            return null;
         }
 
         public async Task<SwaggerService> RunAsync()
         {
             return await Task.Run(() =>
             {
+                if (!string.IsNullOrEmpty(DocumentTemplate))
+                {
+                    if (File.Exists(DocumentTemplate))
+                        Settings.DocumentTemplate = File.ReadAllText(DocumentTemplate);
+                    else
+                        Settings.DocumentTemplate = DocumentTemplate;
+                }
+                else
+                    Settings.DocumentTemplate = null;
+
                 var generator = new WebApiAssemblyToSwaggerGenerator(Settings);
 
                 var controllerNames = ControllerNames.ToList();
@@ -113,10 +168,17 @@ namespace NSwag.Commands
                     controllerNames.Add(ControllerName);
 
                 controllerNames = controllerNames.Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToList();
-                if (!controllerNames.Any() && !string.IsNullOrEmpty(Settings.AssemblyPath))
+                if (!controllerNames.Any() && Settings.AssemblyPaths?.Length > 0)
                     controllerNames = generator.GetControllerClasses().ToList();
 
-                return generator.GenerateForControllers(controllerNames);
+                var service = generator.GenerateForControllers(controllerNames);
+
+                if (!string.IsNullOrEmpty(ServiceHost))
+                    service.Host = ServiceHost;
+                if (ServiceSchemes != null && ServiceSchemes.Any())
+                    service.Schemes = ServiceSchemes.Select(s => (SwaggerSchema)Enum.Parse(typeof(SwaggerSchema), s, true)).ToList();
+
+                return service;
             });
         }
     }

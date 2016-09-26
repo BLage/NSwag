@@ -5,11 +5,14 @@
   "InputJsonSchema": null,
   "WebApiToSwaggerCommand": {
     "AssemblyPath": "..\\NSwag.Demo.Web\\bin\\NSwag.Demo.Web.dll",
+    "AssemblyPaths": [
+      "..\\NSwag.Demo.Web\\bin\\NSwag.Demo.Web.dll"
+    ],
     "AssemblyConfig": null,
     "ReferencePaths": [],
     "ControllerName": "",
     "ControllerNames": [
-      "NSwag.Demo.Web.Controllers.PersonsController"
+      "NSwag.Demo.Web.Controllers.TestController"
     ],
     "DefaultUrlTemplate": "api/{controller}/{action}/{id}",
     "DefaultPropertyNameHandling": "Default",
@@ -32,14 +35,15 @@
   "SwaggerToTypeScriptCommand": {
     "ClassName": "{controller}Client",
     "ModuleName": "",
-    "Template": "JQueryPromises",
+    "Template": "Angular2",
     "PromiseType": "Promise",
+    "DateTimeType": "Date",
     "GenerateClientClasses": true,
     "GenerateClientInterfaces": false,
     "GenerateDtoTypes": true,
     "OperationGenerationMode": "MultipleClientsFromOperationId",
     "GenerateReadOnlyKeywords": true,
-    "TypeStyle": "KnockoutClass",
+    "TypeStyle": "Class",
     "ClassTypes": [
       "Car"
     ],
@@ -51,9 +55,12 @@
   "SwaggerToCSharpClientCommand": {
     "ClientBaseClass": null,
     "GenerateClientClasses": true,
-    "GenerateClientInterfaces": false,
+    "GenerateClientInterfaces": true,
     "GenerateDtoTypes": true,
     "UseHttpClientCreationMethod": false,
+    "GenerateContractsOutput": false,
+    "ContractsNamespace": "NSwag.Demo.Client.Contracts",
+    "ContractsOutputFilePath": "..\\..\\..\\..\\..\\Users\\mail\\Desktop\\bar.cs",
     "Settings": {
       "ClientBaseClass": null,
       "UseHttpClientCreationMethod": false,
@@ -63,7 +70,7 @@
         "DateTimeType": "DateTime",
         "ArrayType": "ObservableCollection",
         "DictionaryType": "Dictionary",
-        "ClassStyle": "Inpc",
+        "ClassStyle": "Poco",
         "NullHandling": "Swagger",
         "PropertyNameGenerator": null,
         "TypeNameGenerator": null
@@ -75,7 +82,7 @@
         "DateTimeType": "DateTime",
         "ArrayType": "ObservableCollection",
         "DictionaryType": "Dictionary",
-        "ClassStyle": "Inpc",
+        "ClassStyle": "Poco",
         "NullHandling": "Swagger",
         "PropertyNameGenerator": null,
         "TypeNameGenerator": null
@@ -83,7 +90,7 @@
       "ClassName": "{controller}Client",
       "OperationGenerationMode": "MultipleClientsFromOperationId",
       "GenerateDtoTypes": true,
-      "GenerateClientInterfaces": false,
+      "GenerateClientInterfaces": true,
       "GenerateClientClasses": true
     },
     "ClassName": "{controller}Client",
@@ -93,10 +100,10 @@
     "DateTimeType": "DateTime",
     "ArrayType": "ObservableCollection",
     "DictionaryType": "Dictionary",
-    "ClassStyle": "Inpc",
+    "ClassStyle": "Poco",
     "OperationGenerationMode": "MultipleClientsFromOperationId",
     "Input": null,
-    "OutputFilePath": null
+    "OutputFilePath": ""
   },
   "SwaggerToCSharpControllerGenerator": {
     "ControllerBaseClass": null,

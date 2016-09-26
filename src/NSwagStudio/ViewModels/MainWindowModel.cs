@@ -14,8 +14,9 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using MyToolkit.Command;
 using MyToolkit.Storage;
-using MyToolkit.Utilities;
 using Newtonsoft.Json;
+using NJsonSchema;
+using NSwag;
 
 namespace NSwagStudio.ViewModels
 {
@@ -28,11 +29,11 @@ namespace NSwagStudio.ViewModels
         public MainWindowModel()
         {
             CreateDocumentCommand = new RelayCommand(CreateDocument);
-            OpenDocumentCommand = new RelayCommand(OpenDocument);
+            OpenDocumentCommand = new AsyncRelayCommand(OpenDocumentAsync);
 
-            CloseDocumentCommand = new RelayCommand<NSwagDocument>(document => CloseDocument(document), document => document != null);
-            SaveDocumentCommand = new RelayCommand<NSwagDocument>(document => SaveDocument(document), document => document != null);
-            SaveAsDocumentCommand = new RelayCommand<NSwagDocument>(document => SaveAsDocument(document), document => document != null);
+            CloseDocumentCommand = new AsyncRelayCommand<NSwagDocument>(async document => await CloseDocumentAsync(document), document => document != null);
+            SaveDocumentCommand = new AsyncRelayCommand<NSwagDocument>(async document => await SaveDocumentAsync(document), document => document != null);
+            SaveAsDocumentCommand = new AsyncRelayCommand<NSwagDocument>(async document => await SaveAsDocumentAsync(document), document => document != null);
 
             Documents = new ObservableCollection<NSwagDocument>();
         }
@@ -56,24 +57,25 @@ namespace NSwagStudio.ViewModels
 
         public RelayCommand CreateDocumentCommand { get; private set; }
 
-        public RelayCommand OpenDocumentCommand { get; private set; }
+        public AsyncRelayCommand OpenDocumentCommand { get; private set; }
 
-        public RelayCommand<NSwagDocument> CloseDocumentCommand { get; private set; }
+        public AsyncRelayCommand<NSwagDocument> CloseDocumentCommand { get; private set; }
 
-        public RelayCommand<NSwagDocument> SaveDocumentCommand { get; private set; }
+        public AsyncRelayCommand<NSwagDocument> SaveDocumentCommand { get; private set; }
 
-        public RelayCommand<NSwagDocument> SaveAsDocumentCommand { get; private set; }
+        public AsyncRelayCommand<NSwagDocument> SaveAsDocumentCommand { get; private set; }
 
-        /// <summary>Gets the application version with build time. </summary>
-        public string ApplicationVersion => GetType().Assembly.GetVersionWithBuildTime();
+        public string NSwagVersion => SwaggerService.ToolchainVersion;
+
+        public string NJsonSchemaVersion => JsonSchema4.ToolchainVersion;
 
         protected override async void OnLoaded()
         {
             await Task.Delay(500);
-            LoadApplicationSettings();
+            await LoadApplicationSettingsAsync();
         }
 
-        private void LoadApplicationSettings()
+        private async Task LoadApplicationSettingsAsync()
         {
             try
             {
@@ -87,7 +89,7 @@ namespace NSwagStudio.ViewModels
                     if (paths.Length > 0)
                     {
                         foreach (var path in paths)
-                            OpenDocument(path);
+                            await OpenDocumentAsync(path);
 
                         SelectedDocument = Documents.Last();
                     }
@@ -108,22 +110,22 @@ namespace NSwagStudio.ViewModels
 
         private void CreateDocument()
         {
-            var document = NSwagDocument.CreateDocument();
+            var document = NSwagDocument.Create();
             Documents.Add(document);
             SelectedDocument = document;
         }
 
-        private void OpenDocument()
+        private async Task OpenDocumentAsync()
         {
             var dlg = new OpenFileDialog();
             dlg.Title = "Open NSwag settings file";
             dlg.Filter = "NSwag settings (*.nswag)|*.nswag";
             dlg.RestoreDirectory = true;
             if (dlg.ShowDialog() == DialogResult.OK)
-                OpenDocument(dlg.FileName);
+                await OpenDocumentAsync(dlg.FileName);
         }
 
-        public void OpenDocument(string filePath)
+        public async Task OpenDocumentAsync(string filePath)
         {
             try
             {
@@ -132,7 +134,7 @@ namespace NSwagStudio.ViewModels
                     SelectedDocument = currentDocument;
                 else
                 {
-                    var document = NSwagDocument.LoadDocument(filePath);
+                    var document = await NSwagDocument.LoadAsync(filePath);
                     Documents.Add(document);
                     SelectedDocument = document;
                 }
@@ -143,7 +145,7 @@ namespace NSwagStudio.ViewModels
             }
         }
 
-        public bool CloseDocument(NSwagDocument document)
+        public async Task<bool> CloseDocumentAsync(NSwagDocument document)
         {
             if (document.IsDirty)
             {
@@ -152,7 +154,7 @@ namespace NSwagStudio.ViewModels
 
                 if (result == DialogResult.Yes)
                 {
-                    var success = SaveDocument(document);
+                    var success = await SaveDocumentAsync(document);
                     if (!success)
                         return false;
                 }
@@ -164,19 +166,19 @@ namespace NSwagStudio.ViewModels
             return true;
         }
 
-        private bool SaveDocument(NSwagDocument document)
+        private async Task<bool> SaveDocumentAsync(NSwagDocument document)
         {
             try
             {
                 if (File.Exists(document.Path))
                 {
-                    document.Save();
+                    await document.SaveAsync();
                     MessageBox.Show("The file has been saved.", "File saved");
                     return true;
                 }
                 else
                 {
-                    if (SaveAsDocument(document))
+                    if (await SaveAsDocumentAsync(document))
                         return true;
                 }
             }
@@ -188,7 +190,7 @@ namespace NSwagStudio.ViewModels
             return false;
         }
 
-        private bool SaveAsDocument(NSwagDocument document)
+        private async Task<bool> SaveAsDocumentAsync(NSwagDocument document)
         {
             var dlg = new SaveFileDialog();
             dlg.Filter = "NSwag settings (*.nswag)|*.nswag";
@@ -197,7 +199,7 @@ namespace NSwagStudio.ViewModels
             if (dlg.ShowDialog() == DialogResult.OK)
             {
                 document.Path = dlg.FileName;
-                document.Save();
+                await document.SaveAsync();
                 return true;
             }
             return false;

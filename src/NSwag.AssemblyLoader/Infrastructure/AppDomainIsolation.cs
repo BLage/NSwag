@@ -23,8 +23,7 @@ namespace NSwag.CodeGeneration.Infrastructure
                 var setup = new AppDomainSetup
                 {
                     ShadowCopyFiles = "true",
-                    ApplicationBase = assemblyDirectory,
-                    ConfigurationFile = !string.IsNullOrEmpty(assemblyConfiguration) ? assemblyConfiguration : transformer.GetConfigurationPath(assemblyDirectory)
+                    ConfigurationFile = transformer.GetConfigurationPath(assemblyDirectory, assemblyConfiguration)
                 };
 
                 Domain = AppDomain.CreateDomain("AppDomainIsolation:" + Guid.NewGuid(), null, setup);

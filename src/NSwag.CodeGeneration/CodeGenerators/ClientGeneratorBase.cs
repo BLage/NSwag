@@ -6,7 +6,6 @@
 // <author>Rico Suter, mail@rsuter.com</author>
 //-----------------------------------------------------------------------
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using NJsonSchema;
@@ -20,9 +19,9 @@ namespace NSwag.CodeGeneration.CodeGenerators
     {
         internal abstract ClientGeneratorBaseSettings BaseSettings { get; }
 
-        internal abstract string RenderFile(string clientCode, string[] clientClasses);
+        internal abstract string GenerateFile(string clientCode, IEnumerable<string> clientClasses, ClientGeneratorOutputType outputType);
 
-        internal abstract string RenderClientCode(string controllerName, IList<OperationModel> operations);
+        internal abstract string GenerateClientClass(string controllerName, IList<OperationModel> operations, ClientGeneratorOutputType outputType);
 
         internal abstract string GetType(JsonSchema4 schema, bool isNullable, string typeNameHint);
 
@@ -44,10 +43,10 @@ namespace NSwag.CodeGeneration.CodeGenerators
             return null;
         }
 
-        internal string GenerateFile<TGenerator>(SwaggerService service, TypeResolverBase<TGenerator> resolver)
+        internal string GenerateFile<TGenerator>(SwaggerService service, TypeResolverBase<TGenerator> resolver, ClientGeneratorOutputType type)
             where TGenerator : TypeGeneratorBase
         {
-            var clients = string.Empty;
+            var clientCode = string.Empty;
             var operations = GetOperations(service, resolver);
             var clientClasses = new List<string>();
 
@@ -56,18 +55,18 @@ namespace NSwag.CodeGeneration.CodeGenerators
                 foreach (var controllerOperations in operations.GroupBy(o => BaseSettings.OperationNameGenerator.GetClientName(service, o.Path, o.HttpMethod, o.Operation)))
                 {
                     var controllerName = GetClassName(controllerOperations.Key);
-                    clients += RenderClientCode(controllerName, controllerOperations.ToList()) + "\n\n";
+                    clientCode += GenerateClientClass(controllerName, controllerOperations.ToList(), type) + "\n\n";
                     clientClasses.Add(controllerName);
                 }
             }
-            else 
+            else
             {
                 var controllerName = GetClassName(string.Empty);
-                clients = RenderClientCode(controllerName, operations);
+                clientCode = GenerateClientClass(controllerName, operations, type);
                 clientClasses.Add(controllerName);
             }
 
-            return RenderFile(clients, clientClasses.ToArray())
+            return GenerateFile(clientCode, clientClasses, type)
                 .Replace("\r", string.Empty)
                 .Replace("\n\n\n\n", "\n\n")
                 .Replace("\n\n\n", "\n\n");
@@ -101,36 +100,34 @@ namespace NSwag.CodeGeneration.CodeGenerators
                         ResultDescription = GetResultDescription(operation),
 
                         ExceptionType = GetExceptionType(operation),
-                        HasFormParameters = operation.Parameters.Any(p => p.Kind == SwaggerParameterKind.FormData),
+                        HasFormParameters = operation.ActualParameters.Any(p => p.Kind == SwaggerParameterKind.FormData),
                         Responses = responses,
                         DefaultResponse = defaultResponse,
-                        Parameters = operation.Parameters.Select(p =>
-                        {
-                            if (p.ActualSchema.Type == JsonObjectType.File)
-                                p.ActualSchema.Type = JsonObjectType.String; // TODO: Implement File type handling
-
-                            return new ParameterModel(ResolveParameterType(p, resolver), operation, p, BaseSettings.CodeGeneratorSettings);
-                        }).ToList(),
+                        Parameters = operation.ActualParameters.Select(p => new ParameterModel(
+                            ResolveParameterType(p, resolver), operation, p, BaseSettings.CodeGeneratorSettings)).ToList(),
                     };
                 }).ToList();
             return operations;
         }
 
-        private string GetClassName(string operationName)
+        /// <summary>Resolves the type of the parameter.</summary>
+        /// <param name="parameter">The parameter.</param>
+        /// <param name="resolver">The resolver.</param>
+        /// <returns>The parameter type name.</returns>
+        protected virtual string ResolveParameterType(SwaggerParameter parameter, ITypeResolver resolver)
         {
-            return BaseSettings.ClassName.Replace("{controller}", ConversionUtilities.ConvertToUpperCamelCase(operationName, false));
-        }
-
-        private string ResolveParameterType<TGenerator>(SwaggerParameter parameter, TypeResolverBase<TGenerator> resolver)
-            where TGenerator : TypeGeneratorBase
-        {
-            var schema = parameter.ActualSchema; 
+            var schema = parameter.ActualSchema;
 
             if (parameter.CollectionFormat == SwaggerParameterCollectionFormat.Multi && !schema.Type.HasFlag(JsonObjectType.Array))
                 schema = new JsonSchema4 { Type = JsonObjectType.Array, Item = schema };
 
             var typeNameHint = ConversionUtilities.ConvertToUpperCamelCase(parameter.Name, true);
             return resolver.Resolve(schema, parameter.IsRequired == false || parameter.IsNullable(BaseSettings.CodeGeneratorSettings.NullHandling), typeNameHint);
+        }
+
+        private string GetClassName(string operationName)
+        {
+            return BaseSettings.ClassName.Replace("{controller}", ConversionUtilities.ConvertToUpperCamelCase(operationName, false));
         }
 
         internal SwaggerResponse GetSuccessResponse(SwaggerOperation operation)
