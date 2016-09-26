@@ -12,6 +12,7 @@ using System.Linq;
 using NJsonSchema;
 using NJsonSchema.CodeGeneration;
 using NSwag.CodeGeneration.CodeGenerators.CSharp.Models;
+using NSwag.CodeGeneration.CodeGenerators.CSharp.Templates;
 using NSwag.CodeGeneration.CodeGenerators.Models;
 
 namespace NSwag.CodeGeneration.CodeGenerators.CSharp
@@ -62,6 +63,13 @@ namespace NSwag.CodeGeneration.CodeGenerators.CSharp
             return GenerateFile(_service, Resolver, outputType);
         }
 
+        /// <summary>Gets the JSON exception converter code.</summary>
+        /// <returns>The code.</returns>
+        public static string GetJsonExceptionConverterCode(int tabCount)
+        {
+            return ConversionUtilities.Tab(new JsonExceptionConverterTemplate().TransformText(), tabCount);
+        }
+
         /// <summary>Resolves the type of the parameter.</summary>
         /// <param name="parameter">The parameter.</param>
         /// <param name="resolver">The resolver.</param>
@@ -72,9 +80,9 @@ namespace NSwag.CodeGeneration.CodeGenerators.CSharp
             if (schema.Type == JsonObjectType.File)
             {
                 if (parameter.CollectionFormat == SwaggerParameterCollectionFormat.Multi && !schema.Type.HasFlag(JsonObjectType.Array))
-                    return "IEnumerable<System.IO.Stream>";
+                    return "IEnumerable<FileParameter>";
 
-                return "System.IO.Stream";
+                return "FileParameter";
             }
 
             return base.ResolveParameterType(parameter, resolver)

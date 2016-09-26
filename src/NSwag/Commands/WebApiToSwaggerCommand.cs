@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using NConsole;
@@ -60,7 +61,7 @@ namespace NSwag.Commands
         [Argument(Name = "Controllers", IsRequired = false)]
         public string[] ControllerNames { get; set; }
 
-        [Description("The Web API default URL template.")]
+        [Description("The Web API default URL template (default: 'api/{controller}/{id}').")]
         [Argument(Name = "DefaultUrlTemplate", IsRequired = false)]
         public string DefaultUrlTemplate
         {
@@ -134,6 +135,10 @@ namespace NSwag.Commands
             set { Settings.Version = value; }
         }
 
+        [Description("Specifies the Swagger document template (may be a path or JSON, default: none).")]
+        [Argument(Name = "DocumentTemplate", IsRequired = false)]
+        public string DocumentTemplate { get; set; }
+
         public override async Task<object> RunAsync(CommandLineProcessor processor, IConsoleHost host)
         {
             var service = await RunAsync();
@@ -146,6 +151,16 @@ namespace NSwag.Commands
         {
             return await Task.Run(() =>
             {
+                if (!string.IsNullOrEmpty(DocumentTemplate))
+                {
+                    if (File.Exists(DocumentTemplate))
+                        Settings.DocumentTemplate = File.ReadAllText(DocumentTemplate);
+                    else
+                        Settings.DocumentTemplate = DocumentTemplate;
+                }
+                else
+                    Settings.DocumentTemplate = null;
+
                 var generator = new WebApiAssemblyToSwaggerGenerator(Settings);
 
                 var controllerNames = ControllerNames.ToList();

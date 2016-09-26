@@ -59,60 +59,58 @@ namespace NSwag.CodeGeneration.SwaggerGenerators.WebApi
 
         /// <summary>Generates a Swagger specification for the given controller type.</summary>
         /// <typeparam name="TController">The type of the controller.</typeparam>
-        /// <param name="excludedMethodName">The name of the excluded method name.</param>
         /// <returns>The <see cref="SwaggerService" />.</returns>
         /// <exception cref="InvalidOperationException">The operation has more than one body parameter.</exception>
-        public SwaggerService GenerateForController<TController>(string excludedMethodName = "Swagger")
+        public SwaggerService GenerateForController<TController>()
         {
-            return GenerateForControllers(new[] { typeof(TController) }, excludedMethodName);
+            return GenerateForControllers(new[] { typeof(TController) });
         }
 
         /// <summary>Generates a Swagger specification for the given controller type.</summary>
         /// <param name="controllerType">The type of the controller.</param>
-        /// <param name="excludedMethodName">The name of the excluded method name.</param>
         /// <returns>The <see cref="SwaggerService" />.</returns>
         /// <exception cref="InvalidOperationException">The operation has more than one body parameter.</exception>
-        public SwaggerService GenerateForController(Type controllerType, string excludedMethodName = "Swagger")
+        public SwaggerService GenerateForController(Type controllerType)
         {
-            return GenerateForControllers(new[] { controllerType }, excludedMethodName);
+            return GenerateForControllers(new[] { controllerType });
         }
 
         /// <summary>Generates a Swagger specification for the given controller types.</summary>
         /// <param name="controllerTypes">The types of the controller.</param>
-        /// <param name="excludedMethodName">The name of the excluded method name.</param>
         /// <returns>The <see cref="SwaggerService" />.</returns>
         /// <exception cref="InvalidOperationException">The operation has more than one body parameter.</exception>
-        public SwaggerService GenerateForControllers(IEnumerable<Type> controllerTypes, string excludedMethodName = "Swagger")
+        public SwaggerService GenerateForControllers(IEnumerable<Type> controllerTypes)
         {
-            var service = CreateService(Settings);
+            var service = CreateDocument(Settings);
 
             var schemaResolver = new SchemaResolver();
             var schemaDefinitionAppender = new SwaggerServiceSchemaDefinitionAppender(service, Settings.TypeNameGenerator);
 
             foreach (var controllerType in controllerTypes)
-                GenerateForController(service, controllerType, excludedMethodName, schemaResolver, schemaDefinitionAppender);
+                GenerateForController(service, controllerType, schemaResolver, schemaDefinitionAppender);
 
             service.GenerateOperationIds();
             return service;
         }
 
-        private static SwaggerService CreateService(WebApiToSwaggerGeneratorSettings settings)
+        private static SwaggerService CreateDocument(WebApiToSwaggerGeneratorSettings settings)
         {
-            return new SwaggerService
+            var service = !string.IsNullOrEmpty(settings.DocumentTemplate) ? SwaggerService.FromJson(settings.DocumentTemplate) : new SwaggerService();
+
+            service.Consumes = new List<string> { "application/json" };
+            service.Produces = new List<string> { "application/json" };
+            service.Info = new SwaggerInfo
             {
-                Consumes = new List<string> { "application/json" },
-                Produces = new List<string> { "application/json" },
-                Info = new SwaggerInfo
-                {
-                    Title = settings.Title,
-                    Description = settings.Description,
-                    Version = settings.Version
-                }
+                Title = settings.Title,
+                Description = settings.Description,
+                Version = settings.Version
             };
+
+            return service;
         }
 
         /// <exception cref="InvalidOperationException">The operation has more than one body parameter.</exception>
-        private void GenerateForController(SwaggerService service, Type controllerType, string excludedMethodName,
+        private void GenerateForController(SwaggerService service, Type controllerType,
             ISchemaResolver schemaResolver, ISchemaDefinitionAppender schemaDefinitionAppender)
         {
             var hasIgnoreAttribute = controllerType.GetTypeInfo().GetCustomAttributes()
@@ -121,7 +119,7 @@ namespace NSwag.CodeGeneration.SwaggerGenerators.WebApi
             if (!hasIgnoreAttribute)
             {
                 var operations = new List<Tuple<SwaggerOperationDescription, MethodInfo>>();
-                foreach (var method in GetActionMethods(controllerType, excludedMethodName))
+                foreach (var method in GetActionMethods(controllerType))
                 {
                     var httpPaths = GetHttpPaths(controllerType, method);
                     var httpMethods = GetSupportedHttpMethods(method).ToList();
@@ -238,11 +236,10 @@ namespace NSwag.CodeGeneration.SwaggerGenerators.WebApi
             }
         }
 
-        private static IEnumerable<MethodInfo> GetActionMethods(Type controllerType, string excludedMethodName)
+        private static IEnumerable<MethodInfo> GetActionMethods(Type controllerType)
         {
             var methods = controllerType.GetRuntimeMethods().Where(m => m.IsPublic);
             return methods.Where(m =>
-                m.Name != excludedMethodName &&
                 m.IsSpecialName == false && // avoid property methods
                 m.DeclaringType != null &&
                 m.DeclaringType != typeof(object) &&
@@ -298,9 +295,7 @@ namespace NSwag.CodeGeneration.SwaggerGenerators.WebApi
             var httpPaths = new List<string>();
             var controllerName = controllerType.Name.Replace("Controller", string.Empty);
 
-            var routeAttributes = method.GetCustomAttributes()
-                .Where(a => a.GetType().Name == "RouteAttribute")
-                .ToList();
+            var routeAttributes = GetRouteAttributes(method.GetCustomAttributes()).ToList();
 
             // .NET Core: Http*Attribute inherits from HttpMethodAttribute with Template property
             var httpMethodWithTemplateAttributes = method.GetCustomAttributes()
@@ -309,11 +304,8 @@ namespace NSwag.CodeGeneration.SwaggerGenerators.WebApi
                 .ToList();
 
             // .NET Core: RouteAttribute on class level
-            dynamic routeAttributeOnClass = controllerType.GetTypeInfo().GetCustomAttributes()
-                .SingleOrDefault(a => a.GetType().Name == "RouteAttribute");
-
-            dynamic routePrefixAttribute = controllerType.GetTypeInfo().GetCustomAttributes()
-                .SingleOrDefault(a => a.GetType().Name == "RoutePrefixAttribute");
+            dynamic routeAttributeOnClass = GetRouteAttributes(controllerType.GetTypeInfo().GetCustomAttributes()).SingleOrDefault();
+            dynamic routePrefixAttribute = GetRoutePrefixAttributes(controllerType.GetTypeInfo().GetCustomAttributes()).SingleOrDefault();
 
             if (routeAttributes.Any() || httpMethodWithTemplateAttributes.Any())
             {
@@ -350,6 +342,19 @@ namespace NSwag.CodeGeneration.SwaggerGenerators.WebApi
                     .Replace("{controller}", controllerName)
                     .Replace("{action}", actionName)
                     .Trim('/');
+        }
+
+        private IEnumerable<Attribute> GetRouteAttributes(IEnumerable<Attribute> attributes)
+        {
+            return attributes.Where(a => a.GetType().Name == "RouteAttribute" ||
+                                         a.GetType().GetTypeInfo().ImplementedInterfaces.Any(t => t.Name == "IHttpRouteInfoProvider") ||
+                                         a.GetType().GetTypeInfo().ImplementedInterfaces.Any(t => t.Name == "IRouteTemplateProvider")); // .NET Core
+        }
+
+        private IEnumerable<Attribute> GetRoutePrefixAttributes(IEnumerable<Attribute> attributes)
+        {
+            return attributes.Where(a => a.GetType().Name == "RoutePrefixAttribute" ||
+                                         a.GetType().GetTypeInfo().ImplementedInterfaces.Any(t => t.Name == "IRoutePrefix"));
         }
 
         private string GetActionName(MethodInfo method)
@@ -632,13 +637,24 @@ namespace NSwag.CodeGeneration.SwaggerGenerators.WebApi
             ISchemaResolver schemaResolver, ISchemaDefinitionAppender schemaDefinitionAppender)
         {
             var typeDescription = JsonObjectTypeDescription.FromType(type, parentAttributes, Settings.DefaultEnumHandling);
-            var parameterType = typeDescription.Type.HasFlag(JsonObjectType.Object) ? typeof(string) : type; // object types must be treated as string
 
-            var operationParameter = _schemaGenerator.Generate<SwaggerParameter>(parameterType, parentAttributes, schemaResolver, schemaDefinitionAppender);
-            if (parameterType.GetTypeInfo().IsEnum)
-                operationParameter.SchemaReference = _schemaGenerator.Generate<JsonSchema4>(parameterType, parentAttributes, schemaResolver, schemaDefinitionAppender);
+            SwaggerParameter operationParameter;
+            if (typeDescription.IsEnum)
+            {
+                // TODO(incompatibility): We use "schema" even it is not allowed in non-body parameters
+                var parameterType = type.Name == "Nullable`1" ? type.GetGenericTypeArguments().Single() : type;
+                operationParameter = new SwaggerParameter
+                {
+                    Type = typeDescription.Type, // Used as fallback for generators which do not check the "schema" property
+                    Schema = _schemaGenerator.Generate<JsonSchema4>(parameterType, parentAttributes, schemaResolver, schemaDefinitionAppender)
+                };
+            }
             else
+            {
+                var parameterType = typeDescription.Type.HasFlag(JsonObjectType.Object) ? typeof(string) : type; // object types must be treated as string
+                operationParameter = _schemaGenerator.Generate<SwaggerParameter>(parameterType, parentAttributes, schemaResolver, schemaDefinitionAppender);
                 _schemaGenerator.ApplyPropertyAnnotations(operationParameter, type, parentAttributes, typeDescription);
+            }
 
             operationParameter.Name = name;
             operationParameter.IsRequired = parentAttributes?.Any(a => a.GetType().Name == "RequiredAttribute") ?? false;
